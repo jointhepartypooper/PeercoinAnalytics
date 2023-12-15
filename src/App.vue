@@ -3,22 +3,40 @@ import { RouterLink, RouterView } from 'vue-router'
 import HelloWorld from './components/HelloWorld.vue'
 </script>
 
+  
+
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div class="container my-5">
+    <h1 class="text-center">Address analyser</h1>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+    <ul class="nav nav-tabs nav-tabs-frame maintab">
+      <li class="nav-item">
+        <router-link
+          to="/"
+          class="nav-link "
+          active-class="active"
+          aria-current="page"
+          >Home</router-link
+        >
+      </li>
+      <li class="nav-item">
+        <router-link
+          to="/about"
+          class="nav-link "
+          active-class="active"
+          aria-current="page"
+          >About</router-link
+        >
+      </li>
+    </ul>
 
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+    <div class="container tab-frame">
+      <router-view />
     </div>
-  </header>
-
-  <RouterView />
+  </div>
 </template>
+
+
 
 <style scoped>
 header {
