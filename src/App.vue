@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
 </script>
 
   
@@ -25,7 +24,7 @@ import HelloWorld from './components/HelloWorld.vue'
           class="nav-link "
           active-class="active"
           aria-current="page"
-          >About</router-link
+          >Address</router-link
         >
       </li>
     </ul>

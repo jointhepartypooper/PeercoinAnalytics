@@ -2,25 +2,21 @@
 import { computed, nextTick, ref, type PropType } from "vue";
 import WelcomeItem from "./WelcomeItem.vue";
 import VueNumberInput from "../components/VueNumberInput.vue";
-import {
-  BIconWrench,
+import { useRpcSettingsStore } from "@/stores/rpcsettings";
+import {  
   BIconWrenchAdjustable,
   BIconGraphUp,
 } from "bootstrap-icons-vue";
-
-const rpcPort = ref<number>(9999);
-const rpcUsername = ref<string>("My_Wallet_Username");
-const rpcPassword = ref<string>("Correct_Horse_Battery_Staple");
-
+const store = useRpcSettingsStore();
 const dockerruncommand = computed<string>(() => {
   const first = "docker run -p";
   const name = "--name emptywallet";
   const image = "-d peercoin/peercoind";
   const rpcallowip = "-rpcallowip=0.0.0.0/0";
-  const username = `-rpcuser=${rpcUsername.value}`;
-  const password = `-rpcpassword=${rpcPassword.value}`;
+  const username = `-rpcuser=${store.name}`;
+  const password = `-rpcpassword=${store.password}`;
 
-  return `${first} ${rpcPort.value}:9902 ${name} ${image} \
+  return `${first} ${store.port}:9902 ${name} ${image} \
     ${rpcallowip} \
     ${password} \
     ${username} \
@@ -33,11 +29,11 @@ name: emptywallet
 services:
     peercoind:
         ports:
-            - ${rpcPort.value}:9902
-        container_name: peercoind
+            - ${store.port}:9902
+        container_name: emptywallet
         image: peercoin/peercoind
-        command: -rpcallowip=0.0.0.0/0 -rpcpassword=${rpcPassword.value}
-            -rpcuser=${rpcUsername.value} -rest=1 -corsdomain=*
+        command: -rpcallowip=0.0.0.0/0 -rpcpassword=${store.password}
+            -rpcuser=${store.name} -rest=1 -corsdomain=*
 </code></pre>`;
 
   return `${txtHtml}`;
@@ -45,13 +41,13 @@ services:
 
 const conffile = computed<string>(() => {
   const txtHtml = `<pre><code>
-    
+
 listen=1
 server=1
 txindex=1
-rpcuser=${rpcUsername.value}
-rpcpassword=${rpcPassword.value}
-rpcport=${rpcPort.value}
+rpcuser=${store.name}
+rpcpassword=${store.password}
+rpcport=${store.port}
 corsdomain=https://findstake.peercoin.net (or * to accept all domains)
 rest=1
  
@@ -59,7 +55,6 @@ rest=1
 
   return `${txtHtml}`;
 });
-
 </script>
 
 <template>
@@ -75,13 +70,13 @@ rest=1
         type="text"
         aria-label="username"
         class="form-control"
-        v-model="rpcUsername"
+        v-model="store.name"
       />
       <input
         type="text"
         aria-label="password"
         class="form-control"
-        v-model="rpcPassword"
+        v-model="store.password"
       />
     </div>
     <div class="input-group mt-2">
@@ -89,8 +84,8 @@ rest=1
 
       <VueNumberInput
         id="frmRpcPort"
-        :modelValue="rpcPort"
-        @update:modelValue="(newValue) => (rpcPort = newValue)"
+        :modelValue="store.port"
+        @update:modelValue="(newValue) => store.setPort(newValue)"
         :min="1000"
         :max="9999"
         :step="1"
@@ -109,10 +104,10 @@ rest=1
     <code>
       {{ dockerruncommand }}
     </code>
-    <div class="my-3">or with compose.yaml:</div>
+    <div class="mt-4">or with compose.yaml:</div>
     <div v-html="dockercomposecommand"></div>
-    <div class="my-3">or with peercoin.conf:</div>
-    <div v-html="conffile"></div>   
+    <div class="mt-4">or with peercoin.conf:</div>
+    <div v-html="conffile"></div>
   </WelcomeItem>
 
   <WelcomeItem>
@@ -124,3 +119,5 @@ rest=1
     ...
   </WelcomeItem>
 </template>
+ 
+ 
