@@ -42,6 +42,24 @@ services:
 
   return `${txtHtml}`;
 });
+
+const conffile = computed<string>(() => {
+  const txtHtml = `<pre><code>
+    
+listen=1
+server=1
+txindex=1
+rpcuser=${rpcUsername.value}
+rpcpassword=${rpcPassword.value}
+rpcport=${rpcPort.value}
+corsdomain=https://findstake.peercoin.net (or * to accept all domains)
+rest=1
+ 
+</code></pre>`;
+
+  return `${txtHtml}`;
+});
+
 </script>
 
 <template>
@@ -91,8 +109,10 @@ services:
     <code>
       {{ dockerruncommand }}
     </code>
-    <div class="my-2">or with compose.yaml:</div>
+    <div class="my-3">or with compose.yaml:</div>
     <div v-html="dockercomposecommand"></div>
+    <div class="my-3">or with peercoin.conf:</div>
+    <div v-html="conffile"></div>   
   </WelcomeItem>
 
   <WelcomeItem>
