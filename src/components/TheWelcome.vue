@@ -1,88 +1,106 @@
 <script setup lang="ts">
-import WelcomeItem from './WelcomeItem.vue'
-import DocumentationIcon from './icons/IconDocumentation.vue'
-import ToolingIcon from './icons/IconTooling.vue'
-import EcosystemIcon from './icons/IconEcosystem.vue'
-import CommunityIcon from './icons/IconCommunity.vue'
-import SupportIcon from './icons/IconSupport.vue'
+import { computed, nextTick, ref, type PropType } from "vue";
+import WelcomeItem from "./WelcomeItem.vue";
+import VueNumberInput from "../components/VueNumberInput.vue";
+import {
+  BIconWrench,
+  BIconWrenchAdjustable,
+  BIconGraphUp,
+} from "bootstrap-icons-vue";
+
+const rpcPort = ref<number>(9999);
+const rpcUsername = ref<string>("My_Wallet_Username");
+const rpcPassword = ref<string>("Correct_Horse_Battery_Staple");
+
+const dockerruncommand = computed<string>(() => {
+  const first = "docker run -p";
+  const name = "--name emptywallet";
+  const image = "-d peercoin/peercoind";
+  const rpcallowip = "-rpcallowip=0.0.0.0/0";
+  const username = `-rpcuser=${rpcUsername.value}`;
+  const password = `-rpcpassword=${rpcPassword.value}`;
+
+  return `${first} ${rpcPort.value}:9902 ${name} ${image} \
+    ${rpcallowip} \
+    ${password} \
+    ${username} \
+    -rest=1 \
+    -corsdomain=*`;
+});
+const dockercomposecommand = computed<string>(() => {
+  const txtHtml = `<pre><code>
+name: emptywallet
+services:
+    peercoind:
+        ports:
+            - ${rpcPort.value}:9902
+        container_name: peercoind
+        image: peercoin/peercoind
+        command: -rpcallowip=0.0.0.0/0 -rpcpassword=${rpcPassword.value}
+            -rpcuser=${rpcUsername.value} -rest=1 -corsdomain=*
+</code></pre>`;
+
+  return `${txtHtml}`;
+});
 </script>
 
 <template>
   <WelcomeItem>
     <template #icon>
-      <DocumentationIcon />
+      <BIconWrenchAdjustable />
     </template>
-    <template #heading>Documentation</template>
+    <template #heading>Wallet setup</template>
 
-    Vue’s
-    <a href="https://vuejs.org/" target="_blank" rel="noopener">official documentation</a>
-    provides you with all information you need to get started.
+    <div class="input-group">
+      <span class="input-group-text">RPC username and password</span>
+      <input
+        type="text"
+        aria-label="username"
+        class="form-control"
+        v-model="rpcUsername"
+      />
+      <input
+        type="text"
+        aria-label="password"
+        class="form-control"
+        v-model="rpcPassword"
+      />
+    </div>
+    <div class="input-group mt-2">
+      <span class="input-group-text">RPC port</span>
+
+      <VueNumberInput
+        id="frmRpcPort"
+        :modelValue="rpcPort"
+        @update:modelValue="(newValue) => (rpcPort = newValue)"
+        :min="1000"
+        :max="9999"
+        :step="1"
+        :controls="false"
+        :required="true"
+        inputclass="form-control form-control-sm"
+      />
+    </div>
   </WelcomeItem>
 
   <WelcomeItem>
     <template #icon>
-      <ToolingIcon />
+      <BIconWrenchAdjustable />
     </template>
-    <template #heading>Tooling</template>
-
-    This project is served and bundled with
-    <a href="https://vitejs.dev/guide/features.html" target="_blank" rel="noopener">Vite</a>. The
-    recommended IDE setup is
-    <a href="https://code.visualstudio.com/" target="_blank" rel="noopener">VSCode</a> +
-    <a href="https://github.com/johnsoncodehk/volar" target="_blank" rel="noopener">Volar</a>. If
-    you need to test your components and web pages, check out
-    <a href="https://www.cypress.io/" target="_blank" rel="noopener">Cypress</a> and
-    <a href="https://on.cypress.io/component" target="_blank" rel="noopener"
-      >Cypress Component Testing</a
-    >.
-
-    <br />
-
-    More instructions are available in <code>README.md</code>.
+    <template #heading>Setup wallet in docker</template>
+    <code>
+      {{ dockerruncommand }}
+    </code>
+    <div class="my-2">or with compose.yaml:</div>
+    <div v-html="dockercomposecommand"></div>
   </WelcomeItem>
 
   <WelcomeItem>
     <template #icon>
-      <EcosystemIcon />
+      <BIconGraphUp />
     </template>
-    <template #heading>Ecosystem</template>
+    <template #heading>Click on next tab</template>
 
-    Get official tools and libraries for your project:
-    <a href="https://pinia.vuejs.org/" target="_blank" rel="noopener">Pinia</a>,
-    <a href="https://router.vuejs.org/" target="_blank" rel="noopener">Vue Router</a>,
-    <a href="https://test-utils.vuejs.org/" target="_blank" rel="noopener">Vue Test Utils</a>, and
-    <a href="https://github.com/vuejs/devtools" target="_blank" rel="noopener">Vue Dev Tools</a>. If
-    you need more resources, we suggest paying
-    <a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">Awesome Vue</a>
-    a visit.
-  </WelcomeItem>
-
-  <WelcomeItem>
-    <template #icon>
-      <CommunityIcon />
-    </template>
-    <template #heading>Community</template>
-
-    Got stuck? Ask your question on
-    <a href="https://chat.vuejs.org" target="_blank" rel="noopener">Vue Land</a>, our official
-    Discord server, or
-    <a href="https://stackoverflow.com/questions/tagged/vue.js" target="_blank" rel="noopener"
-      >StackOverflow</a
-    >. You should also subscribe to
-    <a href="https://news.vuejs.org" target="_blank" rel="noopener">our mailing list</a> and follow
-    the official
-    <a href="https://twitter.com/vuejs" target="_blank" rel="noopener">@vuejs</a>
-    twitter account for latest news in the Vue world.
-  </WelcomeItem>
-
-  <WelcomeItem>
-    <template #icon>
-      <SupportIcon />
-    </template>
-    <template #heading>Support Vue</template>
-
-    As an independent project, Vue relies on community backing for its sustainability. You can help
-    us by
-    <a href="https://vuejs.org/sponsor/" target="_blank" rel="noopener">becoming a sponsor</a>.
+    ...
   </WelcomeItem>
 </template>
