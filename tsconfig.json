@@ -1,5 +1,7 @@
 {
-  "files": [],
+  "files": [
+    "./src/implementation/JsonRPCClient.ts"
+  ],
   "references": [
     {
       "path": "./tsconfig.node.json"
