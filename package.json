@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --build --force"
   },
   "dependencies": {
+    "@marcoschulte/vue3-progress": "^0.0.7",
     "axios": "^1.6.2",
     "axios-retry": "^4.0.0",
     "bootstrap": "^4.6.2",
@@ -23,7 +24,8 @@
     "typeface-roboto": "^1.1.13",
     "vue": "^3.3.10",
     "vue-google-charts": "^1.1.0",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "vue-slider-component": "^4.1.0-beta.7"
   },
   "devDependencies": {
     "@tsconfig/node18": "^18.2.2",

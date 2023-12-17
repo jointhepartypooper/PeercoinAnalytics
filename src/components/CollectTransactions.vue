@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, type PropType } from "vue";
 import Setuptem from "./Setuptem.vue";
+import {TransactionCollection} from "../implementation/TransactionCollection"
+import type { IDecodeRawTransactionResponse } from "../implementation/JsonRPCClient";
 import VueNumberInput from "../components/VueNumberInput.vue";
 import { useTransactionsStore } from "@/stores/transactions";
+import { useRpcSettingsStore } from "@/stores/rpcsettings";
+import {useProgress} from '@marcoschulte/vue3-progress';
 import {
   BIconWrenchAdjustable,
   BIconGraphUp,
@@ -21,11 +25,59 @@ interface IAddressResponse {
   transactions: string[];
 }
 
+interface BlockbookTxData {
+  addrStr: string;
+  transactions: Array<string>;
+}
+
 const store = useTransactionsStore();
+const settingsStore = useRpcSettingsStore();
+const busyGetBlockbookTransactions = ref<boolean>(false);
+const peercoinAddress = ref<string>("");
+
+const validPPCAddress = computed<boolean>(() => {
+  if (!!peercoinAddress.value) {
+    const str = peercoinAddress.value;
+    //bc1 is bitcoin prefix, so does ppercoin have such a prefix?
+    const regex = new RegExp(/^(pc1|[Pp])[a-km-zA-HJ-NP-Z1-9]{25,34}$/);
+
+    return regex.test(str) == true;
+  }
+
+  return false;
+});
+
+async function onClickGetTx() {
+  if (busyGetBlockbookTransactions.value) return;
+  busyGetBlockbookTransactions.value = true;
+  const data = await getBlockbookTransactions(peercoinAddress.value);
+
+  if (!!data && !!data.addrStr) {
+
+    const promise: Promise<IDecodeRawTransactionResponse[]> = loadRawTx(data.transactions);
+    const attached = useProgress().attach(promise);
+    await promise;
+
+    store.clear();
+    store.address = data.addrStr;
+    store.addTxRange(data.transactions);
+
+
+
+  }
+
+  busyGetBlockbookTransactions.value = false;
+}
+
+async function loadRawTx(txids:string[]):Promise<IDecodeRawTransactionResponse[]>{
+  const client = new TransactionCollection(new JsonRPCClient("localhost", settingsStore.name, settingsStore.password, settingsStore.port));
+  const ggg= await client.fetchTransactions(txids);
+  return []
+}
 
 async function getBlockbookTransactions(
   address: string
-): Promise<Array<string> | null> {
+): Promise<BlockbookTxData | null> {
   try {
     let txids = [] as string[];
     let curPage = 1;
@@ -56,13 +108,24 @@ async function getBlockbookTransactions(
       } while (page.totalPages > page.page);
     }
 
-    return txids;
+    return {
+      addrStr: page.addrStr,
+      transactions: txids,
+    } as BlockbookTxData;
   } catch (error) {
     console.error(error);
     //throw "could not GET status from blockbook.peercoin.net";
   }
   return null;
 }
+
+async function getRawTx(){
+
+
+
+  
+}
+
 </script>
 
 <template>
@@ -70,11 +133,25 @@ async function getBlockbookTransactions(
     <template #icon>
       <BIconWrenchAdjustable />
     </template>
-    <template #heading>Wallet setup</template>
+    <template #heading>Transactions</template>
 
     <div class="input-group">
       <span class="input-group-text">Address</span>
-      <input type="text" aria-label="username" class="form-control" />
+      <input
+        id="peercoinAddressinp"
+        class="form-control"
+        :class="{ invalid: !!peercoinAddress && !validPPCAddress }"
+        type="text"
+        v-model="peercoinAddress"
+      />
+      <button
+        :disabled="!validPPCAddress"
+        class="btn btn-outline-success"
+        type="button"
+        @click="onClickGetTx"
+      >
+        Get transactions ids
+      </button>
     </div>
   </Setuptem>
   <!-- 
@@ -123,3 +200,9 @@ async function getBlockbookTransactions(
     </button>
   </Setuptem>
 </template>
+
+<style lang="scss" scoped>
+.invalid {
+  border-bottom: 2px solid rgb(223, 98, 98);
+}
+</style>

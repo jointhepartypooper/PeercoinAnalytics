@@ -5,6 +5,7 @@ import { RouterLink, RouterView } from 'vue-router'
   
 
 <template>
+  <vue3-progress-bar></vue3-progress-bar>
   <div class="container my-5">
     <h1 class="text-center">Address analyser</h1>
 
@@ -20,7 +21,7 @@ import { RouterLink, RouterView } from 'vue-router'
       </li>
       <li class="nav-item">
         <router-link
-          to="/about"
+          to="/address"
           class="nav-link "
           active-class="active"
           aria-current="page"
@@ -37,7 +38,9 @@ import { RouterLink, RouterView } from 'vue-router'
 
 
 
-<style scoped>
+<style lang="scss" scoped>
+@import "../node_modules/@marcoschulte/vue3-progress/dist/index.scss";
+
 header {
   line-height: 1.5;
   max-height: 100vh;

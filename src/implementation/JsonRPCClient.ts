@@ -25,10 +25,17 @@ export interface ITransactionInput {
 export interface ITransactionOutput {
   value: number;
   n: number;
+  scriptPubKey: IScriptPubKey;
+}
+
+export interface IScriptPubKey {
+  address?: string;
+  type?: string;
 }
 
 export interface IDecodeRawTransactionResponse {
   txid: string;
+  hash: string;
   time: number;
   version: number;
   size: number;
