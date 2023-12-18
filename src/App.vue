@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView } from "vue-router";
+import { useTransactionsStore } from "@/stores/transactions";
+
+const store = useTransactionsStore();
 </script>
 
-  
-
 <template>
-  <vue3-progress-bar></vue3-progress-bar>
   <div class="container my-5">
     <h1 class="text-center">Address analyser</h1>
 
@@ -13,7 +13,7 @@ import { RouterLink, RouterView } from 'vue-router'
       <li class="nav-item">
         <router-link
           to="/"
-          class="nav-link "
+          class="nav-link"
           active-class="active"
           aria-current="page"
           >Home</router-link
@@ -22,10 +22,19 @@ import { RouterLink, RouterView } from 'vue-router'
       <li class="nav-item">
         <router-link
           to="/address"
-          class="nav-link "
+          class="nav-link"
           active-class="active"
           aria-current="page"
           >Address</router-link
+        >
+      </li>
+      <li class="nav-item" v-if="store.results.length > 0">
+        <router-link
+          to="/charts"
+          class="nav-link"
+          active-class="active"
+          aria-current="page"
+          >Charts</router-link
         >
       </li>
     </ul>
@@ -36,11 +45,7 @@ import { RouterLink, RouterView } from 'vue-router'
   </div>
 </template>
 
-
-
 <style lang="scss" scoped>
-@import "../node_modules/@marcoschulte/vue3-progress/dist/index.scss";
-
 header {
   line-height: 1.5;
   max-height: 100vh;

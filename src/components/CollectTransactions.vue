@@ -1,22 +1,25 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, type PropType } from "vue";
-import Setuptem from "./Setuptem.vue";
-import {TransactionCollection} from "../implementation/TransactionCollection"
-import type { IDecodeRawTransactionResponse } from "../implementation/JsonRPCClient";
-import VueNumberInput from "../components/VueNumberInput.vue";
-import { useTransactionsStore } from "@/stores/transactions";
-import { useRpcSettingsStore } from "@/stores/rpcsettings";
-import {useProgress} from '@marcoschulte/vue3-progress';
+import { computed, ref, type PropType } from "vue";
+import axios from "axios";
+import { useRouter, useRoute } from "vue-router";
 import {
   BIconWrenchAdjustable,
   BIconGraphUp,
-  BIconCloudCheck,
+  BIconFloppy2,
   BIconCheck2,
 } from "bootstrap-icons-vue";
+import FileSaver from "file-saver";
+import Setuptem from "./Setuptem.vue";
+import {
+  TransactionCollection,
+  type ResultData,
+} from "../implementation/TransactionCollection";
+import { useTransactionsStore } from "@/stores/transactions";
+import { useRpcSettingsStore } from "@/stores/rpcsettings";
 import { JsonRPCClient } from "../implementation/JsonRPCClient";
-import axios from "axios";
-import { useRouter, useRoute } from "vue-router";
+import FileReader from "../components/FileReader.vue";
 const router = useRouter();
+let collector: null | TransactionCollection = null;
 
 interface IAddressResponse {
   page: number;
@@ -29,21 +32,29 @@ interface BlockbookTxData {
   addrStr: string;
   transactions: Array<string>;
 }
+interface IPersistentDataJson {
+  addrStr: string;
+  transactionIds: string[];
+  results: Array<ResultData>;
+}
 
 const store = useTransactionsStore();
 const settingsStore = useRpcSettingsStore();
 const busyGetBlockbookTransactions = ref<boolean>(false);
 const peercoinAddress = ref<string>("");
-
+const progressGetTx = ref<number>(0);
+const progressAnalyseTx = ref<number>(0);
+const combinedProgress = computed<number>(() => {
+  return Math.ceil(
+    0.1 * (7.5 * progressAnalyseTx.value + 2.5 * progressGetTx.value)
+  );
+});
 const validPPCAddress = computed<boolean>(() => {
   if (!!peercoinAddress.value) {
     const str = peercoinAddress.value;
-    //bc1 is bitcoin prefix, so does ppercoin have such a prefix?
     const regex = new RegExp(/^(pc1|[Pp])[a-km-zA-HJ-NP-Z1-9]{25,34}$/);
-
     return regex.test(str) == true;
   }
-
   return false;
 });
 
@@ -53,26 +64,47 @@ async function onClickGetTx() {
   const data = await getBlockbookTransactions(peercoinAddress.value);
 
   if (!!data && !!data.addrStr) {
+    const promiseLoad: Promise<ResultData[]> = getResults(
+      data.addrStr,
+      getCollector(),
+      data.transactions
+    );
 
-    const promise: Promise<IDecodeRawTransactionResponse[]> = loadRawTx(data.transactions);
-    const attached = useProgress().attach(promise);
-    await promise;
-
+    const resultData = await promiseLoad;
     store.clear();
     store.address = data.addrStr;
     store.addTxRange(data.transactions);
-
-
-
+    store.results = resultData;
   }
 
   busyGetBlockbookTransactions.value = false;
 }
 
-async function loadRawTx(txids:string[]):Promise<IDecodeRawTransactionResponse[]>{
-  const client = new TransactionCollection(new JsonRPCClient("localhost", settingsStore.name, settingsStore.password, settingsStore.port));
-  const ggg= await client.fetchTransactions(txids);
-  return []
+function getCollector(): TransactionCollection {
+  if (!collector) {
+    collector = new TransactionCollection(
+      new JsonRPCClient(
+        "localhost",
+        settingsStore.name,
+        settingsStore.password,
+        settingsStore.port
+      )
+    );
+  }
+  return collector;
+}
+
+async function getResults(
+  targetaddr: string,
+  txcollection: TransactionCollection,
+  txids: string[]
+): Promise<ResultData[]> {
+  const rawTxs = await txcollection.fetchTransactions(txids, (p) => {
+    progressGetTx.value = p;
+  });
+  return await txcollection.procdata(targetaddr, rawTxs, (p) => {
+    progressAnalyseTx.value = p;
+  });
 }
 
 async function getBlockbookTransactions(
@@ -119,13 +151,41 @@ async function getBlockbookTransactions(
   return null;
 }
 
-async function getRawTx(){
-
-
-
-  
+function onSave() {
+  const obj = {
+    addrStr: store.address,
+    transactionIds: store.txids,
+    results: store.results,
+  } as IPersistentDataJson;
+  const myJSON = JSON.stringify(obj, null, 2);
+  // Note: Ie and Edge don't support the new File constructor,
+  // so it's better to construct blobs and use saveAs(blob, filename)
+  const file = new File([myJSON], (obj.addrStr ?? "myAddress") + ".json", {
+    type: "text/plain;charset=utf-8",
+  });
+  FileSaver.saveAs(file);
 }
 
+function isIPersistentDataJsonType(o: any): o is IPersistentDataJson {
+  return "addrStr" in o && "transactionIds" in o && "results" in o;
+}
+
+function onFileLoad(jsonString: string) {
+  if (!jsonString) return;
+
+  const parsed = JSON.parse(jsonString);
+
+  if (isIPersistentDataJsonType(parsed)) {
+    store.clear();
+    store.address = parsed.addrStr;
+    store.addTxRange(parsed.transactionIds);
+    store.results = parsed.results;
+    progressGetTx.value = 100;
+    progressAnalyseTx.value = 100;
+  } else {
+    console.warn("This file aint right");
+  }
+}
 </script>
 
 <template>
@@ -134,7 +194,7 @@ async function getRawTx(){
       <BIconWrenchAdjustable />
     </template>
     <template #heading>Transactions</template>
-
+    <div class="my-2">Get transaction from wallet by address</div>
     <div class="input-group">
       <span class="input-group-text">Address</span>
       <input
@@ -150,43 +210,32 @@ async function getRawTx(){
         type="button"
         @click="onClickGetTx"
       >
-        Get transactions ids
+        Get transactions
       </button>
     </div>
+    <div class="progress" style="height: 2px">
+      <div
+        class="progress-bar bg-success"
+        role="progressbar"
+        :style="{ width: combinedProgress + '%' }"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      ></div>
+    </div>
+    <div class="my-2">or import a previous session</div>
+    <FileReader id="formFileSmtodo" @text-loaded="onFileLoad" />
   </Setuptem>
-  <!-- 
-  <Setuptem>
+
+  <Setuptem v-if="combinedProgress >= 100">
     <template #icon>
-      <BIconWrenchAdjustable />
+      <BIconFloppy2 />
     </template>
-    <template #heading>Setup wallet in docker</template>
-    <code>
-      {{ dockerruncommand }}
-    </code>
-    <div class="mt-4">or with compose.yaml:</div>
-    <div v-html="dockercomposecommand"></div>
-    <div class="mt-4">or with peercoin.conf:</div>
-    <div v-html="conffile"></div>
-  </Setuptem>
-  <Setuptem>
-    <template #icon>
-      <BIconCloudCheck />
-    </template>
-    <template #heading>Test connection</template>
-    <button
-      type="button"
-      class="btn"
-      :class="{
-        'btn-success': testOk === null,
-        'btn-outline-success': testOk === true,
-        'btn-outline-danger': testOk === false,
-      }"
-      @click="checkConnection"
-    >
-      Test wallet RPC <BIconCheck2 v-if="testOk" />
+    <template #heading>Export results</template>
+    <button type="button" class="btn btn-outline-success" @click="onSave">
+      Save
     </button>
-  </Setuptem> -->
-  <Setuptem>
+  </Setuptem>
+  <Setuptem v-if="combinedProgress >= 100">
     <template #icon>
       <BIconGraphUp />
     </template>
@@ -194,7 +243,7 @@ async function getRawTx(){
     <button
       type="button"
       class="btn btn-success"
-      @click="router.push({ name: 'address' })"
+      @click="router.push({ name: 'charts' })"
     >
       Next
     </button>

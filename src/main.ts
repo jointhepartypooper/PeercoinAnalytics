@@ -4,7 +4,7 @@ import "bootstrap";
 import axios from "axios";
 import axiosRetry from "axios-retry";
 import "./assets/bootstrap-night.min.css";
-
+ 
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 

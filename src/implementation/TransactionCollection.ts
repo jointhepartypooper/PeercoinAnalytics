@@ -1,6 +1,6 @@
 import { JsonRPCClient } from "../implementation/JsonRPCClient";
-import type { IDecodeRawTransactionResponse } from "../implementation/JsonRPCClient";
-const Coin = 1000000; //	1 PPC = 1.000 mPPC
+import type { IRawTransactionResponse } from "../implementation/JsonRPCClient";
+
 const oneyear = 365 * 24 * 3600; //1 year in seconds
 const oneday = 24 * 3600; //1 day in seconds
 
@@ -25,44 +25,46 @@ export interface ResultPosStats {
 }
 
 export interface IPlotdata {
-  xAxis: number[] | Date[];
+  xAxis: number[];
   yAxis: number[];
 }
 
 export class TransactionCollection {
   client: JsonRPCClient;
-  BlockHeaderSize = 80;
 
-  public Transactions: Array<IDecodeRawTransactionResponse> = [];
+  public Transactions: Array<IRawTransactionResponse> = [];
 
   constructor(client: JsonRPCClient) {
     this.client = client;
   }
 
-  getTransaction(txid: string): IDecodeRawTransactionResponse | null {
+  getTransaction(txid: string): IRawTransactionResponse | null {
     const transaction = this.Transactions.find((t) => t.txid === txid);
     if (!!transaction) return transaction;
     return null;
   }
 
   async fetchTransactions(
-    txids: string[]
-  ): Promise<IDecodeRawTransactionResponse[]> {
+    txids: string[],
+    progressCallback: (p: number) => void
+  ): Promise<IRawTransactionResponse[]> {
+    let p = 0.0;
     for (let index = 0; index < txids.length; index++) {
       const transactionid = txids[index];
-      const hex = await this.getRawTransaction(transactionid);
-      if (!hex) {
+      const txraw = await this.getRawTransaction(transactionid);
+
+      if (!txraw) {
         console.log("unable to get raw transaction " + transactionid);
       } else {
-        if (!this.isEven(hex.length)) throw hex + " is not even";
-
-        const txraw = await this.getDecodedTransaction(hex);
-        if (!txraw) throw "unable to get getDecodedTransaction " + hex;
-        //let time = !!txraw.time ? txraw.time : block.time; // use blocktime if txtime is nt available
-
         this.Transactions.push(txraw);
       }
+      let newprogress = 100.0 * (index / txids.length);
+      if (newprogress - p >= 5) {
+        p = newprogress;
+        progressCallback(p);
+      }
     }
+    progressCallback(100);
     return this.Transactions;
   }
 
@@ -98,12 +100,14 @@ export class TransactionCollection {
 
   //https://github.com/Nagalim/PeercoinAnalytics_js/blob/main/script_online.js#L85
   public async procdata(
-    transactions: IDecodeRawTransactionResponse[]
+    targetaddr: string,
+    transactions: IRawTransactionResponse[],
+    progressCallback: (p: number) => void
   ): Promise<Array<ResultData>> {
     if (!transactions) return [];
     let txnjson = [...transactions];
     txnjson.sort((a, b) => {
-      return a.time - b.time;
+      return a.blocktime - b.blocktime;
     });
 
     const txnid = [] as string[];
@@ -117,24 +121,23 @@ export class TransactionCollection {
     }
 
     const resdata = [] as Array<ResultData>; //date is unixtime in seconds!
-    const targetaddr = txnjson[0].hash;
-    let amtTot = 0;
 
-    for (let i = 0; i < indxid.length; i++) {
-      let indx = indxid[i];
+    let amtTot = 0;
+    let p = 0.0;
+    for (let index = 0; index < indxid.length; index++) {
+      let indx = indxid[index];
       let jsonindx = txnjson[indx];
 
       let txnamnt = 0;
 
       if (this.isCoinstake(jsonindx)) {
-        const prevTxhash = await this.getRawTransaction(jsonindx.vin[0].txid);
-        const prevTx = await this.getDecodedTransaction(prevTxhash!);
+        const prevTx = await this.getRawTransaction(jsonindx.vin[0].txid);
         const coinsIn = prevTx!.vout[jsonindx.vin[0].vout].value;
         const coinstaked = jsonindx.vout[jsonindx.vout.length - 1].value;
         txnamnt = txnamnt + coinstaked - coinsIn;
         amtTot = amtTot + txnamnt;
         resdata.push({
-          date: jsonindx.time,
+          date: jsonindx.blocktime,
           amount: txnamnt,
           tag: "Mint by stake",
           amtTotal: amtTot,
@@ -152,27 +155,38 @@ export class TransactionCollection {
 
         for (let p = 0; p < jsonindx.vin.length; p++) {
           const prevoutput = jsonindx.vin[p];
-          const prevTxhash = await this.getRawTransaction(prevoutput.txid);
-          const prevTx = await this.getDecodedTransaction(prevTxhash!);
+          const prevTx = await this.getRawTransaction(prevoutput.txid);
+
           const prevvoutindex = prevoutput.vout;
-          if (
-            !!prevTx!.vout[prevvoutindex].scriptPubKey.address &&
-            prevTx!.vout[prevvoutindex].scriptPubKey.address === targetaddr
-          ) {
+          const prevVoutArr = !!prevTx ? prevTx.vout : [];
+          const address =
+            !!prevTx &&
+            !!prevVoutArr &&
+            prevVoutArr.length > prevvoutindex &&
+            !!prevVoutArr[prevvoutindex].scriptPubKey.address
+              ? prevVoutArr[prevvoutindex].scriptPubKey.address
+              : "";
+          if (!!address && address === targetaddr) {
             // minus the value from inputs
-            txnamnt = txnamnt - prevTx!.vout[prevvoutindex].value;
+            txnamnt = txnamnt - prevVoutArr[prevvoutindex].value;
           }
         }
+
         amtTot = amtTot + txnamnt;
         resdata.push({
-          date: jsonindx.time,
+          date: jsonindx.blocktime,
           amount: txnamnt,
           tag: "Send/Receive",
           amtTotal: amtTot,
         });
+        let newprogress = 100.0 * (index / indxid.length);
+        if (newprogress - p >= 5) {
+          p = newprogress;
+          progressCallback(p);
+        }
       }
     } //for each tx...
-
+    progressCallback(100);
     return resdata;
   }
 
@@ -185,29 +199,29 @@ export class TransactionCollection {
     //var mind = Date.parse(document.getElementById('windowstart').value);
     //var maxd = Date.parse(document.getElementById('windowend').value);
     let avgint = this.calcintrst(mind, maxd, resdata);
-    let xint = [] as Date[],
+    let xint = [] as number[],
       yint2 = [] as number[],
       yint3 = [] as number[];
     // document.getElementById('avg').innerHTML=avgint[0];
     // document.getElementById('stake').innerHTML=avgint[1];
     // document.getElementById('interest').innerHTML=avgint[2];
 
-    //todo: use public function 
+    //todo: use public function
     if (avgint.interest > this.expavgint(mind, maxd)) {
       console.log("You were a CONTINUOUS minter during this period");
     } else {
       console.log("You were a PERIODIC minter during this period");
     }
-    for (let i = mind; i < maxd; i = i + oneday) {
-      let annualized = this.calcintrst(i - oneyear, i, resdata);
-      let day = new Date(i * 1000);
+    for (let day = mind; day < maxd; day = day + oneday) {
+      let annualized = this.calcintrst(day - oneyear, day, resdata);
+
       xint.push(day);
       yint2.push(annualized.interest);
-      let cumint = this.calcintrst(mind, i, resdata);
+      let cumint = this.calcintrst(mind, day, resdata);
       yint3.push(cumint.rewardpercent);
     }
     //plots 4 and 5 (mint events)
- 
+
     const graphreward = this.posreward(mind, maxd, resdata);
     const xintpos = graphreward.posdate;
     const yint4 = graphreward.posreward;
@@ -296,7 +310,7 @@ export class TransactionCollection {
     return { avg, reward, interest, rewardpercent } as ResultStats;
   }
 
-  private isCoinstake(tx: IDecodeRawTransactionResponse): boolean {
+  private isCoinstake(tx: IRawTransactionResponse): boolean {
     // a coinstake has 1 item in vin and 2 or 3 in vout. In case of 3 vouts the second is for the pooloperator who gets a cut. see https://blockbook.peercoin.net/tx/88b0c6c017d4d023144d35717870e11d0fd302ec25749bf2ca11edc488589b9c
 
     return (
@@ -306,25 +320,27 @@ export class TransactionCollection {
     );
   }
 
-  private async getRawTransaction(txId: string): Promise<string | null> {
+  private async getRawTransaction(
+    txId: string
+  ): Promise<IRawTransactionResponse | null> {
     try {
       if (!txId) return null;
-      return await this.client.getRawTransaction(txId, 0);
+      return await this.client.getRawTransactionVerbose(txId);
     } catch (error) {
       console.error(error);
     }
     return null;
   }
 
-  private async getDecodedTransaction(
-    rawtransaction: string
-  ): Promise<IDecodeRawTransactionResponse | null> {
-    try {
-      if (!rawtransaction) return null;
-      return await this.client.decodeRawTransaction(rawtransaction);
-    } catch (error) {
-      console.error(error);
-    }
-    return null;
-  }
+  // private async getDecodedTransaction(
+  //   rawtransaction: string
+  // ): Promise<IDecodeRawTransactionResponse | null> {
+  //   try {
+  //     if (!rawtransaction) return null;
+  //     return await this.client.decodeRawTransaction(rawtransaction);
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  //   return null;
+  // }
 }

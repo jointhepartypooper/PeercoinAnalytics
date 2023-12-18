@@ -32,7 +32,18 @@ export interface IScriptPubKey {
   address?: string;
   type?: string;
 }
-
+export interface IRawTransactionResponse {
+  txid: string;
+  hash: string;
+  blockhash: string;
+  time: number;
+  blocktime: number;
+  version: number;
+  size: number;
+  vsize: number;
+  vin: Array<ITransactionInput>;
+  vout: Array<ITransactionOutput>;
+}
 export interface IDecodeRawTransactionResponse {
   txid: string;
   hash: string;
@@ -105,15 +116,23 @@ export class JsonRPCClient {
     return null;
   }
 
-  async getRawTransaction(
-    hash: string,
-    verbose: number
-  ): Promise<string | null> {
+  async getRawTransaction(hash: string): Promise<string | null> {
     try {
-      const response = await this.doExecute("getrawtransaction", [
-        hash,
-        verbose,
-      ]);
+      const response = await this.doExecute("getrawtransaction", [hash, 0]);
+      if (!!response && !!response.data && !!response.data.result) {
+        return response.data.result;
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+    return null;
+  }
+
+  async getRawTransactionVerbose(
+    hash: string
+  ): Promise<IRawTransactionResponse | null> {
+    try {
+      const response = await this.doExecute("getrawtransaction", [hash, 1]);
       if (!!response && !!response.data && !!response.data.result) {
         return response.data.result;
       }

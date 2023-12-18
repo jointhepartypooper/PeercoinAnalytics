@@ -1,28 +1,28 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
-import type { IDecodeRawTransactionResponse } from "../implementation/JsonRPCClient";
+//import type { IRawTransactionResponse } from "../implementation/JsonRPCClient";
+import type { ResultData } from "../implementation/TransactionCollection";
 
-export interface IDecodeRawTransactionResponseHash {
-  [hash: string]: IDecodeRawTransactionResponse;
-}
-export interface IDecodeRawTransactionResponseTime {
-  [unixtimestamp: number]: IDecodeRawTransactionResponse; //in seconds!!!. assumed is there is just 1 tx at maximum of that address in that 1 secons
-}
-
-//stores raw transactions of address
+//stores raw transactions and results of address
 export const useTransactionsStore = defineStore("transactions", () => {
-  const txMapHash = ref<IDecodeRawTransactionResponseHash>({}); //state
-  const txMapTime = ref<IDecodeRawTransactionResponseTime>({}); //state
+  //const rawTransactions = ref<Array<IRawTransactionResponse>>([]); //state
+  const results = ref<Array<ResultData>>([]); //state
   const address = ref(""); //state
   const txids = ref<Array<string>>([]); //state
-  const count = computed(() => txids.value.length); //getter example
+  // const orderedTransactions = computed(() => {
+  //   let arr = [...rawTransactions.value];
+  //   arr.sort((a, b) => {
+  //     return a.time - b.time;
+  //   });
+  //   return arr;
+  // }); //getter
 
   //actions:
   function clear() {
     txids.value = [];
+    results.value = [];
+   // rawTransactions.value = [];
     address.value = "";
-    txMapHash.value = {};
-    txMapTime.value = {};
   }
 
   function addTxRange(ids: string[]) {
@@ -30,26 +30,13 @@ export const useTransactionsStore = defineStore("transactions", () => {
     txids.value = outputArray;
   }
 
-  function setMaps(txs: Array<IDecodeRawTransactionResponse>) {
-    let tmpHash = {} as IDecodeRawTransactionResponseHash;
-    let tmpTime = {} as IDecodeRawTransactionResponseTime;
-    for (let index = 0; index < txs.length; index++) {
-      const raw = txs[index];
-
-      tmpHash[raw.hash] = raw;
-      tmpTime[raw.time] = raw;
-    }
-    txMapHash.value = tmpHash;
-    txMapTime.value = tmpTime;
-  }
-
-
-
-
-
-
-
-
-
-  return { txMapHash, txMapTime, address, txids, addTxRange, clear, setMaps };
+  return {
+   // orderedTransactions,
+   // rawTransactions,
+    address,
+    txids,
+    results,
+    addTxRange,
+    clear,
+  };
 });
