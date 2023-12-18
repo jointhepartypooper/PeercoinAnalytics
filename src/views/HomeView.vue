@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import TheWelcome from '../components/TheWelcome.vue'
+import SetupWallet from '../components/SetupWallet.vue'
 </script>
 
 <template>
   <main>
-    <TheWelcome />
+    <SetupWallet />
   </main>
 </template>

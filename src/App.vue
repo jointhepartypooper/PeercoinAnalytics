@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-</script>
+import { RouterLink, RouterView } from "vue-router";
+import { useTransactionsStore } from "@/stores/transactions";
 
-  
+const store = useTransactionsStore();
+</script>
 
 <template>
   <div class="container my-5">
@@ -10,34 +11,23 @@ import { RouterLink, RouterView } from 'vue-router'
 
     <ul class="nav nav-tabs nav-tabs-frame maintab">
       <li class="nav-item">
-        <router-link
-          to="/"
-          class="nav-link "
-          active-class="active"
-          aria-current="page"
-          >Home</router-link
+        <router-link to="/" class="nav-link" aria-current="page"
+          >Setup</router-link
         >
       </li>
       <li class="nav-item">
-        <router-link
-          to="/about"
-          class="nav-link "
-          active-class="active"
-          aria-current="page"
+        <router-link to="/address" class="nav-link" aria-current="page"
           >Address</router-link
         >
       </li>
     </ul>
-
-    <div class="container tab-frame">
+    <div class="container tab-frame mt-3">
       <router-view />
     </div>
   </div>
 </template>
 
-
-
-<style scoped>
+<style lang="scss" scoped>
 header {
   line-height: 1.5;
   max-height: 100vh;
@@ -72,7 +62,9 @@ nav a {
 nav a:first-of-type {
   border: 0;
 }
-
+.router-link-active.router-link-exact-active.nav-link {
+  color: aquamarine;
+}
 @media (min-width: 1024px) {
   header {
     display: flex;
