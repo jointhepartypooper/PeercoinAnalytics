@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, type PropType } from "vue";
-import { BIconFloppy2 } from "bootstrap-icons-vue";
+import { BIconCloudUpload } from "bootstrap-icons-vue";
 
 const emit = defineEmits(["text-loaded"]);
 
@@ -33,7 +33,7 @@ function readFile() {
 <template>
   <div class="input-group custom-file-button">
     <label class="input-group-text inputbox clickable" for="inputGroupFile">
-      <BIconFloppy2 style="font-size: 1.5rem; color: cornflowerblue;"
+      <BIconCloudUpload style="font-size: 1.5rem; color: cornflowerblue;"
     /></label>
     <input
       type="file"

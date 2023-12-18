@@ -1,27 +1,37 @@
 import { ref, computed } from "vue";
 import { defineStore } from "pinia";
-//import type { IRawTransactionResponse } from "../implementation/JsonRPCClient";
 import type { ResultData } from "../implementation/TransactionCollection";
 
 //stores raw transactions and results of address
 export const useTransactionsStore = defineStore("transactions", () => {
-  //const rawTransactions = ref<Array<IRawTransactionResponse>>([]); //state
   const results = ref<Array<ResultData>>([]); //state
   const address = ref(""); //state
   const txids = ref<Array<string>>([]); //state
-  // const orderedTransactions = computed(() => {
-  //   let arr = [...rawTransactions.value];
-  //   arr.sort((a, b) => {
-  //     return a.time - b.time;
-  //   });
-  //   return arr;
-  // }); //getter
+
+  const dataRange = computed(() => {
+    let arr = [...results.value];
+    if (!arr) null;
+    arr.sort((a, b) => {
+      return a.date - b.date;
+    });
+    //strips timestamps:
+    const start = new Date(new Date(1000 * arr[0].date).toDateString());
+    var enddate = new Date(1000 * arr[arr.length - 1].date);
+    // add a day
+    enddate.setDate(enddate.getDate() + 1);
+
+    const end = new Date(enddate.toDateString());
+
+    return {
+      start,
+      end,
+    };
+  }); //getter example
 
   //actions:
   function clear() {
     txids.value = [];
     results.value = [];
-   // rawTransactions.value = [];
     address.value = "";
   }
 
@@ -31,12 +41,11 @@ export const useTransactionsStore = defineStore("transactions", () => {
   }
 
   return {
-   // orderedTransactions,
-   // rawTransactions,
     address,
     txids,
     results,
     addTxRange,
     clear,
+    dataRange,
   };
 });

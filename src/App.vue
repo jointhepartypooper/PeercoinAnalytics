@@ -11,35 +11,17 @@ const store = useTransactionsStore();
 
     <ul class="nav nav-tabs nav-tabs-frame maintab">
       <li class="nav-item">
-        <router-link
-          to="/"
-          class="nav-link"
-          active-class="active"
-          aria-current="page"
-          >Home</router-link
+        <router-link to="/" class="nav-link" aria-current="page"
+          >Setup</router-link
         >
       </li>
       <li class="nav-item">
-        <router-link
-          to="/address"
-          class="nav-link"
-          active-class="active"
-          aria-current="page"
+        <router-link to="/address" class="nav-link" aria-current="page"
           >Address</router-link
         >
       </li>
-      <li class="nav-item" v-if="store.results.length > 0">
-        <router-link
-          to="/charts"
-          class="nav-link"
-          active-class="active"
-          aria-current="page"
-          >Charts</router-link
-        >
-      </li>
     </ul>
-
-    <div class="container tab-frame">
+    <div class="container tab-frame mt-3">
       <router-view />
     </div>
   </div>
@@ -80,7 +62,9 @@ nav a {
 nav a:first-of-type {
   border: 0;
 }
-
+.router-link-active.router-link-exact-active.nav-link {
+  color: aquamarine;
+}
 @media (min-width: 1024px) {
   header {
     display: flex;

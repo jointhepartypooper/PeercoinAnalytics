@@ -25,7 +25,7 @@ export interface ResultPosStats {
 }
 
 export interface IPlotdata {
-  xAxis: number[];
+  xAxis: Date[];
   yAxis: number[];
 }
 
@@ -122,7 +122,7 @@ export class TransactionCollection {
 
     const resdata = [] as Array<ResultData>; //date is unixtime in seconds!
 
-    let amtTot = 0;
+    let amtTot = 0;//cumulative total?
     let p = 0.0;
     for (let index = 0; index < indxid.length; index++) {
       let indx = indxid[index];
@@ -199,7 +199,7 @@ export class TransactionCollection {
     //var mind = Date.parse(document.getElementById('windowstart').value);
     //var maxd = Date.parse(document.getElementById('windowend').value);
     let avgint = this.calcintrst(mind, maxd, resdata);
-    let xint = [] as number[],
+    let xint = [] as Date[],
       yint2 = [] as number[],
       yint3 = [] as number[];
     // document.getElementById('avg').innerHTML=avgint[0];
@@ -215,7 +215,7 @@ export class TransactionCollection {
     for (let day = mind; day < maxd; day = day + oneday) {
       let annualized = this.calcintrst(day - oneyear, day, resdata);
 
-      xint.push(day);
+      xint.push(new Date(day * 1000)); // construct Date with miliseconds
       yint2.push(annualized.interest);
       let cumint = this.calcintrst(mind, day, resdata);
       yint3.push(cumint.rewardpercent);
@@ -223,7 +223,7 @@ export class TransactionCollection {
     //plots 4 and 5 (mint events)
 
     const graphreward = this.posreward(mind, maxd, resdata);
-    const xintpos = graphreward.posdate;
+    const xintpos = graphreward.posdate.map((d) => new Date(d * 1000)); // construct Date with miliseconds
     const yint4 = graphreward.posreward;
     const yint5 = graphreward.posdatediff;
     // plotdata(xint,yint2,'areatwo','lines+markers','Annualized Interest (%)');

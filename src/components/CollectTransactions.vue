@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, type PropType } from "vue";
+import { computed, ref } from "vue";
 import axios from "axios";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import {
   BIconWrenchAdjustable,
   BIconGraphUp,
   BIconFloppy2,
-  BIconCheck2,
 } from "bootstrap-icons-vue";
 import FileSaver from "file-saver";
 import Setuptem from "./Setuptem.vue";
@@ -18,6 +17,7 @@ import { useTransactionsStore } from "@/stores/transactions";
 import { useRpcSettingsStore } from "@/stores/rpcsettings";
 import { JsonRPCClient } from "../implementation/JsonRPCClient";
 import FileReader from "../components/FileReader.vue";
+import ChartsOverview from "../components/ChartsOverview.vue";
 const router = useRouter();
 let collector: null | TransactionCollection = null;
 
@@ -189,7 +189,7 @@ function onFileLoad(jsonString: string) {
 </script>
 
 <template>
-  <Setuptem>
+  <Setuptem v-if="combinedProgress < 100.0">
     <template #icon>
       <BIconWrenchAdjustable />
     </template>
@@ -239,14 +239,10 @@ function onFileLoad(jsonString: string) {
     <template #icon>
       <BIconGraphUp />
     </template>
-    <template #heading>Next tab</template>
-    <button
-      type="button"
-      class="btn btn-success"
-      @click="router.push({ name: 'charts' })"
-    >
-      Next
-    </button>
+    <template #heading>Charts</template>
+    <div class="charts">
+      <ChartsOverview />
+    </div>
   </Setuptem>
 </template>
 
