@@ -13,7 +13,7 @@ import router from "./router";
 
 // Exponential back-off retry delay between requests
 axiosRetry(axios, {
-  retries: 7,
+  retries: 5,
   retryDelay: axiosRetry.exponentialDelay,
   onRetry: (retryCount, error, requestConfig) => {
     console.log("retry count: ", retryCount);

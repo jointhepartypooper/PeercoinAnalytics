@@ -194,8 +194,14 @@ function onFileLoad(jsonString: string) {
       <BIconWrenchAdjustable />
     </template>
     <template #heading>Transactions</template>
-    <div class="my-2">Get transaction from wallet by address</div>
-    <div class="input-group">
+    <div class="my-2">
+      Get transaction from wallet by address.
+      <span class="text-info my-1" v-if="!settingsStore.testOk">
+        Pass the connection test first
+      </span>
+    </div>
+
+    <div class="input-group" v-if="settingsStore.testOk">
       <span class="input-group-text">Address</span>
       <input
         id="peercoinAddressinp"
@@ -205,7 +211,7 @@ function onFileLoad(jsonString: string) {
         v-model="peercoinAddress"
       />
       <button
-        :disabled="!validPPCAddress"
+        :disabled="!validPPCAddress || !settingsStore.testOk"
         class="btn btn-outline-success"
         type="button"
         @click="onClickGetTx"
@@ -213,7 +219,7 @@ function onFileLoad(jsonString: string) {
         Get transactions
       </button>
     </div>
-    <div class="progress" style="height: 2px">
+    <div v-if="settingsStore.testOk" class="progress" style="height: 2px">
       <div
         class="progress-bar bg-success"
         role="progressbar"
@@ -223,7 +229,7 @@ function onFileLoad(jsonString: string) {
       ></div>
     </div>
     <div class="my-2">or import a previous session</div>
-    <FileReader id="formFileSmtodo" @text-loaded="onFileLoad" />
+    <FileReader @text-loaded="onFileLoad" />
   </Setuptem>
 
   <Setuptem v-if="combinedProgress >= 100">

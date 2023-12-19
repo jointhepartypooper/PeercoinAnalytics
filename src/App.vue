@@ -1,19 +1,24 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from "vue-router";
-import { useTransactionsStore } from "@/stores/transactions";
-
-const store = useTransactionsStore();
+import { useRpcSettingsStore } from "@/stores/rpcsettings";
+import {
+  BIconWrenchAdjustable,
+  BIconGraphUp,
+  BIconCloudCheck,
+  BIconCheck2,
+} from "bootstrap-icons-vue";
+const store = useRpcSettingsStore();
 </script>
 
 <template>
   <div class="container my-5">
-    <h1 class="text-center">Address analyser</h1>
+    <h1 class="text-center">Analyze a Peercoin Address</h1>
 
     <ul class="nav nav-tabs nav-tabs-frame maintab">
       <li class="nav-item">
         <router-link to="/" class="nav-link" aria-current="page"
-          >Setup</router-link
-        >
+          >Setup <BIconCheck2 v-if="store.testOk"
+        /></router-link>
       </li>
       <li class="nav-item">
         <router-link to="/address" class="nav-link" aria-current="page"
