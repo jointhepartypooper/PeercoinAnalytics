@@ -79,6 +79,7 @@ async function checkConnection() {
     wallettest > 0 &&
     !!status &&
     Math.abs(wallettest - status?.blockbook.bestHeight) < 10;
+  store.testOk = testOk.value
 }
 
 async function getBlockCount(): Promise<number> {
@@ -130,7 +131,7 @@ async function getBlockbookStatus(): Promise<IBlockbook | null> {
       />
     </div>
     <div class="input-group mt-2">
-      <span class="input-group-text">RPC port</span>
+      <span class="input-group-text pe-5">RPC port</span>
 
       <VueNumberInput
         id="frmRpcPort"
@@ -141,7 +142,7 @@ async function getBlockbookStatus(): Promise<IBlockbook | null> {
         :step="1"
         :controls="false"
         :required="true"
-        inputclass="form-control form-control-sm"
+        inputclass="form-control form-control"
       />
     </div>
   </Setuptem>

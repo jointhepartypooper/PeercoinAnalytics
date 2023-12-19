@@ -29,6 +29,13 @@ export interface IPlotdata {
   yAxis: number[];
 }
 
+export interface IStatsData {
+  avg: number;
+  stake: number;
+  interest: number;
+  continuousMinter: boolean;
+}
+
 export class TransactionCollection {
   client: JsonRPCClient;
 
@@ -74,7 +81,7 @@ export class TransactionCollection {
 
   //https://github.com/Nagalim/PeercoinAnalytics_js/blob/main/script_online.js#L180
   //Set the bar for Continuous Minting as earning 0.75% average interest before v0.9 and 3.75% after.
-  public expavgint(minDate: number, maxDate: number): number {
+  static expavgint(minDate: number, maxDate: number): number {
     //in seconds!!!
     const cnfbar = 0.75;
     const switchdate = new Date("2020-06-05T01:00:00Z").getTime() / 1000;
@@ -122,7 +129,7 @@ export class TransactionCollection {
 
     const resdata = [] as Array<ResultData>; //date is unixtime in seconds!
 
-    let amtTot = 0;//cumulative total?
+    let amtTot = 0; //cumulative total?
     let p = 0.0;
     for (let index = 0; index < indxid.length; index++) {
       let indx = indxid[index];
@@ -190,28 +197,36 @@ export class TransactionCollection {
     return resdata;
   }
 
+  public static getStats(
+    mind: number, //timstamp in seconds!
+    maxd: number,
+    resdata: ResultData[]
+  ): IStatsData {
+    const avgint = this.calcintrst(mind, maxd, resdata);
+
+    // if (avgint.interest > this.expavgint(mind, maxd)) {
+    //   console.log("You were a CONTINUOUS minter during this period");
+    // } else {
+    //   console.log("You were a PERIODIC minter during this period");
+    // }
+    return {
+      avg: avgint.avg, //Average Peercoin Balance: #ppc
+      stake: avgint.reward, //Peercoin Minted: #ppc
+      interest: avgint.interest, //Average Annualized Interest: % Earned
+      continuousMinter: avgint.interest > this.expavgint(mind, maxd), //Minter Behavior
+    } as IStatsData;
+  }
+
   //Use the date window to spit out averages.
-  public datedata(
+  static datedata(
     mind: number, //timstamp in seconds!
     maxd: number,
     resdata: ResultData[]
   ): Array<IPlotdata> {
-    //var mind = Date.parse(document.getElementById('windowstart').value);
-    //var maxd = Date.parse(document.getElementById('windowend').value);
-    let avgint = this.calcintrst(mind, maxd, resdata);
     let xint = [] as Date[],
       yint2 = [] as number[],
       yint3 = [] as number[];
-    // document.getElementById('avg').innerHTML=avgint[0];
-    // document.getElementById('stake').innerHTML=avgint[1];
-    // document.getElementById('interest').innerHTML=avgint[2];
 
-    //todo: use public function
-    if (avgint.interest > this.expavgint(mind, maxd)) {
-      console.log("You were a CONTINUOUS minter during this period");
-    } else {
-      console.log("You were a PERIODIC minter during this period");
-    }
     for (let day = mind; day < maxd; day = day + oneday) {
       let annualized = this.calcintrst(day - oneyear, day, resdata);
 
@@ -241,7 +256,7 @@ export class TransactionCollection {
   }
 
   //https://github.com/Nagalim/PeercoinAnalytics_js/blob/main/script_online.js#L158
-  public posreward(
+  static posreward(
     mindate: number,
     maxdate: number,
     resdata: ResultData[]
@@ -274,7 +289,7 @@ export class TransactionCollection {
   }
 
   //Calculate average balance, stake minted, annualized interest over date window, and total reward as percentage of balance.
-  public calcintrst(
+  static calcintrst(
     mindate: number,
     maxdate: number,
     resdata: ResultData[]
