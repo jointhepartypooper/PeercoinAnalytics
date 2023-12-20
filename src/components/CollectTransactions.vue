@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import axios from "axios";
-import { useRouter } from "vue-router";
+
 import {
   BIconWrenchAdjustable,
   BIconGraphUp,
@@ -18,7 +18,7 @@ import { useRpcSettingsStore } from "@/stores/rpcsettings";
 import { JsonRPCClient } from "../implementation/JsonRPCClient";
 import FileReader from "../components/FileReader.vue";
 import ChartsOverview from "../components/ChartsOverview.vue";
-const router = useRouter();
+
 let collector: null | TransactionCollection = null;
 
 interface IAddressResponse {
@@ -64,6 +64,9 @@ async function onClickGetTx() {
   const data = await getBlockbookTransactions(peercoinAddress.value);
 
   if (!!data && !!data.addrStr) {
+    //show total tx:
+    store.addTxRange(data.transactions);
+    store.address = data.addrStr;
     const promiseLoad: Promise<ResultData[]> = getResults(
       data.addrStr,
       getCollector(),
@@ -102,6 +105,7 @@ async function getResults(
   const rawTxs = await txcollection.fetchTransactions(txids, (p) => {
     progressGetTx.value = p;
   });
+
   return await txcollection.procdata(targetaddr, rawTxs, (p) => {
     progressAnalyseTx.value = p;
   });
@@ -211,7 +215,11 @@ function onFileLoad(jsonString: string) {
         v-model="peercoinAddress"
       />
       <button
-        :disabled="!validPPCAddress || !settingsStore.testOk"
+        :disabled="
+          busyGetBlockbookTransactions ||
+          !validPPCAddress ||
+          !settingsStore.testOk
+        "
         class="btn btn-outline-success"
         type="button"
         @click="onClickGetTx"
@@ -228,8 +236,16 @@ function onFileLoad(jsonString: string) {
         aria-valuemax="100"
       ></div>
     </div>
-    <div class="my-2">or import a previous session</div>
-    <FileReader @text-loaded="onFileLoad" />
+    <div class="my-2" v-if="store.txids.length > 0">
+      {{ store.txids.length }} transactions found for this address
+    </div>
+    <div class="my-3" v-if="!busyGetBlockbookTransactions">
+      or import a previous session
+    </div>
+    <FileReader
+      v-if="!busyGetBlockbookTransactions"
+      @text-loaded="onFileLoad"
+    />
   </Setuptem>
 
   <Setuptem v-if="combinedProgress >= 100">
