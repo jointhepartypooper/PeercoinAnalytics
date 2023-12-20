@@ -1,5 +1,10 @@
 import axios, { type AxiosResponse } from "axios";
-
+import Bottleneck from "bottleneck";
+//max 5 per second:
+const limiter = new Bottleneck({
+  maxConcurrent: 1,
+  minTime: 200,
+});
 export interface IBlockResponse {
   hash: string;
   confirmations: number;
@@ -192,24 +197,26 @@ export class JsonRPCClient {
     method: string,
     params: null | any[]
   ): Promise<AxiosResponse<any, any>> {
-    return await axios.post(
-      "http://" + this.host + ":" + this.port,
-      {
-        jsonrpc: "2.0",
-        id: +new Date(),
-        method: method,
-        params: !!params ? params : null,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+    return await limiter.schedule(() =>
+      axios.post(
+        "http://" + this.host + ":" + this.port,
+        {
+          jsonrpc: "2.0",
+          id: +new Date(),
+          method: method,
+          params: !!params ? params : null,
         },
-        auth: {
-          username: this.user,
-          password: this.password,
-        },
-      }
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+          auth: {
+            username: this.user,
+            password: this.password,
+          },
+        }
+      )
     );
   }
 }

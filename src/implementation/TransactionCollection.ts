@@ -66,7 +66,7 @@ export class TransactionCollection {
         this.Transactions.push(txraw);
       }
       let newprogress = 100.0 * (index / txids.length);
-      if (newprogress - p >= 5) {
+      if (newprogress - p >= 1.5) {
         p = newprogress;
         progressCallback(p);
       }
@@ -138,8 +138,18 @@ export class TransactionCollection {
       let txnamnt = 0;
 
       if (this.isCoinstake(jsonindx)) {
-        const prevTx = await this.getRawTransaction(jsonindx.vin[0].txid);
-        const coinsIn = prevTx!.vout[jsonindx.vin[0].vout].value;
+        let coinsIn = 0;
+        if (!!jsonindx.vin[0].txid) {
+          //pos coinstake
+          const prevTx = await this.getRawTransaction(jsonindx.vin[0].txid);
+          coinsIn = prevTx!.vout[jsonindx.vin[0].vout].value;
+        } else {
+          //pow coins mined
+          coinsIn = 0; // pow magic!
+          debugger;
+        }
+
+        //just take value from the last vout:
         const coinstaked = jsonindx.vout[jsonindx.vout.length - 1].value;
         txnamnt = txnamnt + coinstaked - coinsIn;
         amtTot = amtTot + txnamnt;
@@ -187,7 +197,7 @@ export class TransactionCollection {
           amtTotal: amtTot,
         });
         let newprogress = 100.0 * (index / indxid.length);
-        if (newprogress - p >= 5) {
+        if (newprogress - p >= 1.5) {
           p = newprogress;
           progressCallback(p);
         }
@@ -331,7 +341,8 @@ export class TransactionCollection {
     return (
       tx.vin.length === 1 &&
       tx.vout.length > 1 &&
-      tx.vout[0].value < 0.000001 /* && tx.vout[0].type === 'nonstandard' */
+      tx.vout[0].value <
+        0.000001 /* && (tx.vout[0].type === 'nonstandard' || tx.vout[0].type === 'nulldata') */
     );
   }
 
