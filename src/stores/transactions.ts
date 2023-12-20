@@ -10,7 +10,7 @@ export const useTransactionsStore = defineStore("transactions", () => {
 
   const dataRange = computed(() => {
     let arr = [...results.value];
-    if (!arr) null;
+    if (!arr || arr.length === 0) return null;
     arr.sort((a, b) => {
       return a.date - b.date;
     });

@@ -149,9 +149,18 @@ export class TransactionCollection {
           debugger;
         }
 
-        //just take value from the last vout:
-        const coinstaked = jsonindx.vout[jsonindx.vout.length - 1].value;
+        // a output can be splitted in 2 (or more)
+        //just take values except the first:
+        let coinstaked = 0.0;
+        for (let index = 0; index < jsonindx.vout.length; index++) {
+          const voutElement = jsonindx.vout[index];
+          if (index > 0) {
+            coinstaked = coinstaked + voutElement.value;
+          }
+        }
+
         txnamnt = txnamnt + coinstaked - coinsIn;
+
         amtTot = amtTot + txnamnt;
         resdata.push({
           date: jsonindx.blocktime,

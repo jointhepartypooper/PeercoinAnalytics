@@ -13,8 +13,8 @@ const stake = ref<number | null>(null);
 const periodic = ref<boolean | null>(null);
 const continously = ref<boolean | null>(null);
 const dateRangeValues = ref<Array<number>>([
-  Math.floor(0.001 * store.dataRange.start.getTime()),
-  Math.floor(0.001 * store.dataRange.end.getTime()),
+  !!store.dataRange ? Math.floor(0.001 * store.dataRange.start.getTime()) : 0,
+  !!store.dataRange ? Math.floor(0.001 * store.dataRange.end.getTime()) : Math.floor(Date.now() / 1000),
 ]);
 const xInterestValues = ref<Array<Date>>([]);
 const yInterestValues = ref<Array<number>>([]);
@@ -113,8 +113,16 @@ function formatLongDate(
           v-model="dateRangeValues"
           :step="3600 * 4"
           :format="formatLongDate"
-          :min="Math.floor(0.001 * store.dataRange.start.getTime())"
-          :max="Math.floor(0.001 * store.dataRange.end.getTime())"
+          :min="
+            !!store.dataRange
+              ? Math.floor(0.001 * store.dataRange.start.getTime())
+              : 0
+          "
+          :max="
+            !!store.dataRange
+              ? Math.floor(0.001 * store.dataRange.end.getTime())
+              : 0
+          "
         >
         </Slider>
       </div>
@@ -197,7 +205,7 @@ function formatLongDate(
         />
       </div>
     </div>
-    
+
     <div class="row mt-5" v-if="xMintTimeValues.length > 0">
       <div class="col-12">
         <ColumnChart
