@@ -67,13 +67,12 @@ async function onClickGetTx() {
     //show total tx:
     store.addTxRange(data.transactions);
     store.address = data.addrStr;
-    const promiseLoad: Promise<ResultData[]> = getResults(
+ 
+    const resultData = await getResults(
       data.addrStr,
       getCollector(),
       data.transactions
-    );
-
-    const resultData = await promiseLoad;
+    );;
     store.clear();
     store.address = data.addrStr;
     store.addTxRange(data.transactions);
