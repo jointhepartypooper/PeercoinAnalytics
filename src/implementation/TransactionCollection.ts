@@ -1,5 +1,8 @@
 import { JsonRPCClient } from "../implementation/JsonRPCClient";
-import type { IRawTransactionResponse } from "../implementation/JsonRPCClient";
+import type {
+  IRawTransactionResponse,
+  ITransactionOutput,
+} from "../implementation/JsonRPCClient";
 
 const oneyear = 365 * 24 * 3600; //1 year in seconds
 const oneday = 24 * 3600; //1 day in seconds
@@ -105,6 +108,55 @@ export class TransactionCollection {
     return tinter;
   }
 
+  getCoinsStaked(
+    targetaddr: string,
+    rawTx: IRawTransactionResponse,
+    isPOW: boolean,
+    specifiedVout: boolean
+  ): number {
+    let coinstaked = 0.0;
+    for (let index = 0; index < rawTx.vout.length; index++) {
+      const voutElement = rawTx.vout[index];
+      if (index > 0) {
+        if (isPOW) {
+          if (
+            !!voutElement.scriptPubKey &&
+            !!voutElement.scriptPubKey.address
+          ) {
+            // when coins are mined with pow in a pool, other Addresses may be included
+            // e.g.: PPGascbrTJGDSerDmrdSpXtmWSjHfkyUBS being the miner and PRQG79k1aGD4dqpdUFZ4nwQzEJTn6CsrmW as one of the participant
+            if (voutElement.scriptPubKey.address === targetaddr) {
+              coinstaked = coinstaked + voutElement.value;
+            }
+          } else {
+            //   "type": "pubkey"
+            if (!specifiedVout) {
+              //no specificVout for this address found, must be the miner then:eg: PPGascbrTJGDSerDmrdSpXtmWSjHfkyUBS
+              coinstaked = coinstaked + voutElement.value;
+            }
+          }
+        } else {
+          // a output can be splitted in 2 (or more)
+          // just take values except the first:
+          coinstaked = coinstaked + voutElement.value;
+        }
+      }
+    }
+
+    return coinstaked;
+  }
+
+  async getVoutFromTx(
+    txid: string,
+    index: number
+  ): Promise<ITransactionOutput | null> {
+    const prevTx = await this.getRawTransaction(txid);
+    if (!!prevTx && !!prevTx.vout && prevTx.vout.length > index) {
+      return prevTx.vout[index];
+    }
+    return null;
+  }
+
   //https://github.com/Nagalim/PeercoinAnalytics_js/blob/main/script_online.js#L85
   public async procdata(
     targetaddr: string,
@@ -112,18 +164,18 @@ export class TransactionCollection {
     progressCallback: (p: number) => void
   ): Promise<Array<ResultData>> {
     if (!transactions) return [];
-    let txnjson = [...transactions];
-    txnjson.sort((a, b) => {
+    let alltx = [...transactions];
+    alltx.sort((a, b) => {
       return a.blocktime - b.blocktime;
     });
 
     const txnid = [] as string[];
     const indxid = [] as number[];
-    for (let m = 0; m < txnjson.length; m++) {
-      let idtxn = txnjson[m].txid;
+    for (let indexTx = 0; indexTx < alltx.length; indexTx++) {
+      const idtxn = alltx[indexTx].txid;
       if (!txnid.includes(idtxn)) {
         txnid.push(idtxn);
-        indxid.push(m);
+        indxid.push(indexTx);
       }
     }
 
@@ -133,13 +185,13 @@ export class TransactionCollection {
     let p = 0.0;
     for (let index = 0; index < indxid.length; index++) {
       let indx = indxid[index];
-      let rawTx = txnjson[indx];
+      let rawTx = alltx[indx];
 
       let txnamnt = 0;
       let isPOW = false;
       let specifiedVout =
         rawTx.vout.length > 0 &&
-        rawTx.vout.find(
+        !!rawTx.vout.find(
           (vo) =>
             !!vo.scriptPubKey &&
             !!vo.scriptPubKey.address &&
@@ -150,43 +202,23 @@ export class TransactionCollection {
         let coinsIn = 0;
         if (!!rawTx.vin[0].txid) {
           //pos coinstake
-          const prevTx = await this.getRawTransaction(rawTx.vin[0].txid);
-          coinsIn = prevTx!.vout[rawTx.vin[0].vout].value;
+          const prevVout = await this.getVoutFromTx(
+            rawTx.vin[0].txid,
+            rawTx.vin[0].vout
+          );
+
+          coinsIn = !!prevVout ? prevVout.value : 0;
         } else {
           //pow coins mined
           coinsIn = 0; // pow magic!
           isPOW = true;
         }
-
-        let coinstaked = 0.0;
-        for (let index = 0; index < rawTx.vout.length; index++) {
-          const voutElement = rawTx.vout[index];
-          if (index > 0) {
-            if (isPOW) {
-              if (
-                !!voutElement.scriptPubKey &&
-                !!voutElement.scriptPubKey.address
-              ) {
-                // when coins are mined with pow in a pool, other Addresses may be included
-                // e.g.: PPGascbrTJGDSerDmrdSpXtmWSjHfkyUBS being the miner and PRQG79k1aGD4dqpdUFZ4nwQzEJTn6CsrmW as one of the participant
-                if (voutElement.scriptPubKey.address === targetaddr) {
-                  coinstaked = coinstaked + voutElement.value;
-                }
-              } else {
-                //   "type": "pubkey"
-                if (!specifiedVout) {
-                  //no specificVout for this address found, must be the miner then:eg: PPGascbrTJGDSerDmrdSpXtmWSjHfkyUBS
-                  coinstaked = coinstaked + voutElement.value;
-                }
-              }
-            } else {
-              // a output can be splitted in 2 (or more)
-              // just take values except the first:
-              coinstaked = coinstaked + voutElement.value;
-            }
-          }
-        }
-
+        const coinstaked = this.getCoinsStaked(
+          targetaddr,
+          rawTx,
+          isPOW,
+          specifiedVout
+        );
         txnamnt = txnamnt + coinstaked - coinsIn;
 
         amtTot = amtTot + txnamnt;
@@ -197,40 +229,7 @@ export class TransactionCollection {
           amtTotal: amtTot,
         });
       } else {
-        for (let n = 0; n < rawTx.vout.length; n++) {
-          if (!!rawTx.vout[n].scriptPubKey.address) {
-            if (rawTx.vout[n].scriptPubKey.address === targetaddr) {
-              //gains the value in outputs
-              //console.log("gains: " + Number(rawTx.vout[n].value));
-              txnamnt = txnamnt + Number(rawTx.vout[n].value);
-            } else {
-              //moving coins elsewhere
-              //console.log("loses: " + Number(rawTx.vout[n].value));
-              //if there are multiple sources then no idea how to subtract:
-              if (rawTx.vin.length === 1)
-                txnamnt = txnamnt - Number(rawTx.vout[n].value);
-            }
-          }
-        }
-
-        for (let p = 0; p < rawTx.vin.length; p++) {
-          const prevoutput = rawTx.vin[p];
-          const prevTx = await this.getRawTransaction(prevoutput.txid);
-
-          const prevvoutindex = prevoutput.vout;
-          const prevVoutArr = !!prevTx ? prevTx.vout : [];
-          const address =
-            !!prevTx &&
-            !!prevVoutArr &&
-            prevVoutArr.length > prevvoutindex &&
-            !!prevVoutArr[prevvoutindex].scriptPubKey.address
-              ? prevVoutArr[prevvoutindex].scriptPubKey.address
-              : "";
-          if (!!address && address === targetaddr) {
-            // minus the value from input if address equals targetaddr
-            txnamnt = txnamnt - prevVoutArr[prevvoutindex].value;
-          }
-        }
+        txnamnt = await this.getDeltaBalance(targetaddr, rawTx);
 
         amtTot = amtTot + txnamnt;
         resdata.push({
@@ -248,6 +247,43 @@ export class TransactionCollection {
     } //for each tx...
     progressCallback(100);
     return resdata;
+  }
+
+  async getDeltaBalance(
+    targetaddr: string,
+    rawTx: IRawTransactionResponse
+  ): Promise<number> {
+    let txnamnt = 0.0;
+
+    // add to balance if address is mentioned in vouts:
+    for (let n = 0; n < rawTx.vout.length; n++) {
+      if (!!rawTx.vout[n].scriptPubKey.address) {
+        if (rawTx.vout[n].scriptPubKey.address === targetaddr) {
+          //gains the value in outputs
+          //console.log("gains: " + Number(rawTx.vout[n].value));
+          txnamnt = txnamnt + Number(rawTx.vout[n].value);
+        }
+      }
+    }
+    // substract from balance if address is mentioned in vin:
+    for (let vinIndex = 0; vinIndex < rawTx.vin.length; vinIndex++) {
+      const prevoutput = rawTx.vin[vinIndex];
+      const prevVout = await this.getVoutFromTx(
+        prevoutput.txid,
+        prevoutput.vout
+      );
+      const address =
+        !!prevVout && !!prevVout.scriptPubKey.address
+          ? prevVout.scriptPubKey.address
+          : "";
+
+      if (!!address && !!prevVout && address === targetaddr) {
+        // minus the value from input if address equals targetaddr
+        txnamnt = txnamnt - prevVout.value;
+      }
+    }
+
+    return txnamnt;
   }
 
   public static getStats(
