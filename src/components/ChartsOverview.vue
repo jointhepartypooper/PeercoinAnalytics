@@ -139,7 +139,7 @@ function formatLongDate(
         <input readonly type="text" class="form-control" :value="avg" />
       </div>
       <div class="col-md-6">
-        <label class="form-label">Peercoin Minted</label>
+        <label class="form-label">Peercoin Minted/Mined</label>
         <input type="text" class="form-control" :value="stake" />
       </div>
 
@@ -197,7 +197,7 @@ function formatLongDate(
     <div class="row mt-5" v-if="xMintRewardValues.length > 0">
       <div class="col-12">
         <ColumnChart
-          title="Reward of Mint Events"
+          title="Reward of Mint/Mine Events"
           xaxislabel="Time"
           yaxislabel="Mint Reward (# Coins)"
           :xpoints="xMintRewardValues"
@@ -209,7 +209,7 @@ function formatLongDate(
     <div class="row mt-5" v-if="xMintTimeValues.length > 0">
       <div class="col-12">
         <ColumnChart
-          title="Average Time Between Mints"
+          title="Average Time Between Mints/Mines"
           xaxislabel="Time"
           yaxislabel="Time Between Mint Events (Days)"
           :xpoints="xMintTimeValues"

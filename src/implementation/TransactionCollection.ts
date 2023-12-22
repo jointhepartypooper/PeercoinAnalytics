@@ -133,29 +133,57 @@ export class TransactionCollection {
     let p = 0.0;
     for (let index = 0; index < indxid.length; index++) {
       let indx = indxid[index];
-      let jsonindx = txnjson[indx];
+      let rawTx = txnjson[indx];
 
       let txnamnt = 0;
+      let isPOW = false;
+      let specifiedVout =
+        rawTx.vout.length > 0 &&
+        rawTx.vout.find(
+          (vo) =>
+            !!vo.scriptPubKey &&
+            !!vo.scriptPubKey.address &&
+            vo.scriptPubKey.address === targetaddr
+        );
 
-      if (this.isCoinstake(jsonindx)) {
+      if (this.isCoinCreation(rawTx)) {
         let coinsIn = 0;
-        if (!!jsonindx.vin[0].txid) {
+        if (!!rawTx.vin[0].txid) {
           //pos coinstake
-          const prevTx = await this.getRawTransaction(jsonindx.vin[0].txid);
-          coinsIn = prevTx!.vout[jsonindx.vin[0].vout].value;
+          const prevTx = await this.getRawTransaction(rawTx.vin[0].txid);
+          coinsIn = prevTx!.vout[rawTx.vin[0].vout].value;
         } else {
           //pow coins mined
           coinsIn = 0; // pow magic!
-          debugger;
+          isPOW = true;
         }
 
-        // a output can be splitted in 2 (or more)
-        //just take values except the first:
         let coinstaked = 0.0;
-        for (let index = 0; index < jsonindx.vout.length; index++) {
-          const voutElement = jsonindx.vout[index];
+        for (let index = 0; index < rawTx.vout.length; index++) {
+          const voutElement = rawTx.vout[index];
           if (index > 0) {
-            coinstaked = coinstaked + voutElement.value;
+            if (isPOW) {
+              if (
+                !!voutElement.scriptPubKey &&
+                !!voutElement.scriptPubKey.address
+              ) {
+                // when coins are mined with pow in a pool, other Addresses may be included
+                // e.g.: PPGascbrTJGDSerDmrdSpXtmWSjHfkyUBS being the miner and PRQG79k1aGD4dqpdUFZ4nwQzEJTn6CsrmW as one of the participant
+                if (voutElement.scriptPubKey.address === targetaddr) {
+                  coinstaked = coinstaked + voutElement.value;
+                }
+              } else {
+                //   "type": "pubkey"
+                if (!specifiedVout) {
+                  //no specificVout for this address found, must be the miner then:eg: PPGascbrTJGDSerDmrdSpXtmWSjHfkyUBS
+                  coinstaked = coinstaked + voutElement.value;
+                }
+              }
+            } else {
+              // a output can be splitted in 2 (or more)
+              // just take values except the first:
+              coinstaked = coinstaked + voutElement.value;
+            }
           }
         }
 
@@ -163,24 +191,28 @@ export class TransactionCollection {
 
         amtTot = amtTot + txnamnt;
         resdata.push({
-          date: jsonindx.blocktime,
+          date: rawTx.blocktime,
           amount: txnamnt,
-          tag: "Mint by stake",
+          tag: isPOW ? "Mined with pow" : "Mint by stake",
           amtTotal: amtTot,
         });
       } else {
-        for (let n = 0; n < jsonindx.vout.length; n++) {
-          if (
-            !!jsonindx.vout[n].scriptPubKey.address &&
-            jsonindx.vout[n].scriptPubKey.address === targetaddr
-          ) {
-            //gains the value in outputs
-            txnamnt = txnamnt + Number(jsonindx.vout[n].value);
+        for (let n = 0; n < rawTx.vout.length; n++) {
+          if (!!rawTx.vout[n].scriptPubKey.address) {
+            if (rawTx.vout[n].scriptPubKey.address === targetaddr) {
+              //gains the value in outputs
+              //console.log("gains: " + Number(rawTx.vout[n].value));
+              txnamnt = txnamnt + Number(rawTx.vout[n].value);
+            } else {
+              //moving coins elsewhere
+              //console.log("loses: " + Number(rawTx.vout[n].value));
+              txnamnt = txnamnt - Number(rawTx.vout[n].value);
+            }
           }
         }
 
-        for (let p = 0; p < jsonindx.vin.length; p++) {
-          const prevoutput = jsonindx.vin[p];
+        for (let p = 0; p < rawTx.vin.length; p++) {
+          const prevoutput = rawTx.vin[p];
           const prevTx = await this.getRawTransaction(prevoutput.txid);
 
           const prevvoutindex = prevoutput.vout;
@@ -193,14 +225,14 @@ export class TransactionCollection {
               ? prevVoutArr[prevvoutindex].scriptPubKey.address
               : "";
           if (!!address && address === targetaddr) {
-            // minus the value from inputs
+            // minus the value from input if address equals targetaddr
             txnamnt = txnamnt - prevVoutArr[prevvoutindex].value;
           }
         }
 
         amtTot = amtTot + txnamnt;
         resdata.push({
-          date: jsonindx.blocktime,
+          date: rawTx.blocktime,
           amount: txnamnt,
           tag: "Send/Receive",
           amtTotal: amtTot,
@@ -223,11 +255,6 @@ export class TransactionCollection {
   ): IStatsData {
     const avgint = this.calcintrst(mind, maxd, resdata);
 
-    // if (avgint.interest > this.expavgint(mind, maxd)) {
-    //   console.log("You were a CONTINUOUS minter during this period");
-    // } else {
-    //   console.log("You were a PERIODIC minter during this period");
-    // }
     return {
       avg: avgint.avg, //Average Peercoin Balance: #ppc
       stake: avgint.reward, //Peercoin Minted: #ppc
@@ -290,7 +317,7 @@ export class TransactionCollection {
       if (
         data.date > mindate &&
         data.date < maxdate &&
-        data.tag === "Mint by stake"
+        data.tag !== "Send/Receive"
       ) {
         k++;
         posdate.push(data.date);
@@ -331,7 +358,7 @@ export class TransactionCollection {
           }
         }
 
-        if (data.tag === "Mint by stake") {
+        if (data.tag !== "Send/Receive") {
           reward = reward + data.amount;
         }
         onswitch = 1;
@@ -344,8 +371,12 @@ export class TransactionCollection {
     return { avg, reward, interest, rewardpercent } as ResultStats;
   }
 
-  private isCoinstake(tx: IRawTransactionResponse): boolean {
-    // a coinstake has 1 item in vin and 2 or 3 in vout. In case of 3 vouts the second is for the pooloperator who gets a cut. see https://blockbook.peercoin.net/tx/88b0c6c017d4d023144d35717870e11d0fd302ec25749bf2ca11edc488589b9c
+  private isCoinCreation(tx: IRawTransactionResponse): boolean {
+    // a coinstake has 1 item in vin and 2 or 3 in vout.
+    //In case of 3 vouts the second is for the pooloperator who gets a cut. see https://blockbook.peercoin.net/tx/88b0c6c017d4d023144d35717870e11d0fd302ec25749bf2ca11edc488589b9c
+    // or when it is a pow, all the participants gets a cut
+    // type nulldata when it is a pow
+    // type is nonstandard when it is a pos
 
     return (
       tx.vin.length === 1 &&

@@ -1,10 +1,8 @@
 import axios, { type AxiosResponse } from "axios";
-import Bottleneck from "bottleneck";
+import { RateLimiter } from "limiter";
 //max 5 per second:
-const limiter = new Bottleneck({
-  maxConcurrent: 1,
-  minTime: 200,
-});
+const limiter = new RateLimiter({ tokensPerInterval: 1, interval: 200 });
+
 export interface IBlockResponse {
   hash: string;
   confirmations: number;
@@ -181,7 +179,7 @@ export class JsonRPCClient {
       });
     }
     const params = [param1, param2, 0, timestamp];
-    console.log(params);
+
     try {
       const response = await this.doExecute("createrawtransaction", params);
       if (!!response && !!response.data && !!response.data.result) {
@@ -197,26 +195,26 @@ export class JsonRPCClient {
     method: string,
     params: null | any[]
   ): Promise<AxiosResponse<any, any>> {
-    return await limiter.schedule(() =>
-      axios.post(
-        "http://" + this.host + ":" + this.port,
-        {
-          jsonrpc: "2.0",
-          id: +new Date(),
-          method: method,
-          params: !!params ? params : null,
+    await limiter.removeTokens(1);
+
+    return axios.post(
+      "http://" + this.host + ":" + this.port,
+      {
+        jsonrpc: "2.0",
+        id: +new Date(),
+        method: method,
+        params: !!params ? params : null,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          },
-          auth: {
-            username: this.user,
-            password: this.password,
-          },
-        }
-      )
+        auth: {
+          username: this.user,
+          password: this.password,
+        },
+      }
     );
   }
 }
