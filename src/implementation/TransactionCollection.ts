@@ -206,7 +206,9 @@ export class TransactionCollection {
             } else {
               //moving coins elsewhere
               //console.log("loses: " + Number(rawTx.vout[n].value));
-              txnamnt = txnamnt - Number(rawTx.vout[n].value);
+              //if there are multiple sources then no idea how to subtract:
+              if (rawTx.vin.length === 1)
+                txnamnt = txnamnt - Number(rawTx.vout[n].value);
             }
           }
         }
