@@ -146,7 +146,36 @@ export class TransactionCollection {
     return coinstaked;
   }
 
-  async getVoutFromTx(
+  private async getAddressFromTxTillNoCoinStake(
+    txid: string,
+    index: number
+  ): Promise<{ address: string; value: number }> {
+    let inputValue = 0;
+    let address = "";
+    let prevVout = null as null | ITransactionOutput;
+    const prevTx = await this.getRawTransaction(txid);
+    if (!!prevTx && !!prevTx.vout && prevTx.vout.length > index) {
+      prevVout = prevTx.vout[index];
+    }
+
+    if (!!prevVout && !!prevTx) {
+      inputValue = prevVout.value;
+      if (!!prevVout.scriptPubKey && !!prevVout.scriptPubKey.address) {
+        return { address: prevVout.scriptPubKey.address, value: inputValue };
+      } else if (this.isCoinCreation(prevTx)) {
+        //if it is constake, recurse up!
+        let ret = await this.getAddressFromTxTillNoCoinStake(
+          prevTx.vin[0].txid,
+          prevTx.vin[0].vout
+        );
+        address = ret.address;
+      }
+    }
+
+    return { address: address, value: inputValue };
+  }
+
+  private async getVoutFromTx(
     txid: string,
     index: number
   ): Promise<ITransactionOutput | null> {
@@ -268,18 +297,19 @@ export class TransactionCollection {
     // substract from balance if address is mentioned in vin:
     for (let vinIndex = 0; vinIndex < rawTx.vin.length; vinIndex++) {
       const prevoutput = rawTx.vin[vinIndex];
-      const prevVout = await this.getVoutFromTx(
+
+      let addressWithValue = await this.getAddressFromTxTillNoCoinStake(
         prevoutput.txid,
         prevoutput.vout
       );
-      const address =
-        !!prevVout && !!prevVout.scriptPubKey.address
-          ? prevVout.scriptPubKey.address
-          : "";
 
-      if (!!address && !!prevVout && address === targetaddr) {
+      const address =
+        !!addressWithValue && !!addressWithValue.address
+          ? addressWithValue.address
+          : "";
+      if (!!address && address === targetaddr) {
         // minus the value from input if address equals targetaddr
-        txnamnt = txnamnt - prevVout.value;
+        txnamnt = txnamnt - addressWithValue.value;
       }
     }
 
