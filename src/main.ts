@@ -1,10 +1,11 @@
 import "./assets/main.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap";
+import "vue-multiselect/dist/vue-multiselect.css";
 import axios from "axios";
 import axiosRetry from "axios-retry";
 import "./assets/bootstrap-night.min.css";
-  import "@vueform/slider/themes/default.css"
+import "@vueform/slider/themes/default.css";
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 

@@ -2,9 +2,6 @@
 import { RouterLink, RouterView } from "vue-router";
 import { useRpcSettingsStore } from "@/stores/rpcsettings";
 import {
-  BIconWrenchAdjustable,
-  BIconGraphUp,
-  BIconCloudCheck,
   BIconCheck2,
 } from "bootstrap-icons-vue";
 const store = useRpcSettingsStore();
@@ -25,14 +22,20 @@ const store = useRpcSettingsStore();
           >Address</router-link
         >
       </li>
+      <li class="nav-item" v-if="store.testOk">
+        <router-link to="/opreturn" class="nav-link" aria-current="page"
+          >Books</router-link
+        >
+      </li>
     </ul>
     <div class="container tab-frame mt-3">
       <router-view />
     </div>
   </div>
 </template>
-
+ 
 <style lang="scss" scoped>
+
 header {
   line-height: 1.5;
   max-height: 100vh;

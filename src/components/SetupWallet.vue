@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, type PropType } from "vue";
+import { computed, ref } from "vue";
 import Setuptem from "./Setuptem.vue";
 import VueNumberInput from "../components/VueNumberInput.vue";
 import { useRpcSettingsStore } from "@/stores/rpcsettings";
@@ -11,7 +11,7 @@ import {
 } from "bootstrap-icons-vue";
 import { JsonRPCClient } from "../implementation/JsonRPCClient";
 import axios from "axios";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 const router = useRouter();
 
 interface IBlockbook {

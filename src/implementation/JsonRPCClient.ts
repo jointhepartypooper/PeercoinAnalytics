@@ -34,6 +34,8 @@ export interface ITransactionOutput {
 export interface IScriptPubKey {
   address?: string;
   type?: string;
+  asm?: string;
+  hex?: string;
 }
 export interface IRawTransactionResponse {
   txid: string;
